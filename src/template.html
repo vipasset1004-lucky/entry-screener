@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="타점 스크리너" />
+  <title>타점 스크리너 — 일목 + 볼린저 + 엔벨로프</title>
+  <style>
+    :root {
+      --bg: #0b0f1a; --panel: #131a2b; --panel-2: #1a2238; --line: #243152;
+      --txt: #e6ecff; --mut: #8a97c0;
+      --acc: #4cc2ff; --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; --gold: #fbbf24;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(76,194,255,.2); }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; padding: 0;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
+      font: 14px/1.5 'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;
+      background: var(--bg); color: var(--txt);
+      overscroll-behavior-y: contain;
+    }
+    a { color: var(--acc); text-decoration: none; }
+
+    header {
+      padding: 18px 20px 12px;
+      padding-top: max(18px, env(safe-area-inset-top));
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg,#0e1424 0%,#0b0f1a 100%);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.3px; }
+    h1 .sub { font-size: 12px; color: var(--mut); margin-left: 8px; font-weight: 400; }
+    .meta-line { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--mut); margin-top: 8px; }
+    .meta-line .chip {
+      padding: 4px 10px; border-radius: 999px;
+      background: var(--panel); border: 1px solid var(--line);
+    }
+    .meta-line .chip strong { color: var(--txt); }
+
+    .tabs { display: flex; gap: 6px; margin: 14px 20px 0; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      padding: 10px 16px; border-radius: 10px 10px 0 0;
+      background: var(--panel); border: 1px solid var(--line); border-bottom: none;
+      color: var(--mut); cursor: pointer; user-select: none; font-weight: 600;
+      white-space: nowrap; flex-shrink: 0;
+      min-height: 44px; display: inline-flex; align-items: center;
+    }
+    .tab.active { background: var(--panel-2); color: var(--txt); }
+    .tab .count { color: var(--mut); margin-left: 6px; font-weight: 400; font-size: 12px; }
+
+    .filters {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      padding: 10px 20px; background: var(--panel-2);
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    }
+    .filters label { color: var(--mut); font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+    .filters select, .filters input[type=text] {
+      background: var(--panel); color: var(--txt); border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px 10px; font-size: 14px;
+    }
+    .filters input[type=text] { -webkit-appearance: none; }
+
+    main { padding: 16px 20px 80px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+    .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 14px; padding: 14px; position: relative;
+      transition: transform .12s ease, border-color .2s ease;
+    }
+    .card.r80 { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(251,191,36,.2); }
+    .card.r65 { border-color: var(--good); }
+    .card.r50 { border-color: #6c7be0; }
+    .card.sell { border-color: var(--bad); box-shadow: 0 0 0 1px rgba(239,68,68,.2); }
+
+    .card .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .card .name { font-size: 16px; font-weight: 700; }
+    .card .ticker { font-size: 11px; color: var(--mut); margin-left: 4px; font-weight: 400; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid transparent; }
+    .badge.b80 { background: linear-gradient(90deg,#fbbf24,#f97316); color:#fff; border-color:#f97316; box-shadow:0 0 8px rgba(251,191,36,.4); }
+    .badge.b65 { background: rgba(34,197,94,.2); color:#6ee7b7; border-color: rgba(34,197,94,.5); }
+    .badge.b50 { background: rgba(76,194,255,.15); color: var(--acc); border-color: rgba(76,194,255,.4); }
+    .badge.b35 { background: rgba(138,151,192,.12); color: var(--mut); border-color: rgba(138,151,192,.3); }
+    .badge.sell { background: rgba(239,68,68,.18); color: #fca5a5; border-color: rgba(239,68,68,.5); }
+    .badge.triple { background: linear-gradient(90deg,#4cc2ff,#22c55e); color:#fff; border-color: transparent; font-weight: 800; }
+    .badge.market { background: var(--panel-2); color: var(--mut); border-color: var(--line); font-weight: 500; }
+
+    .card .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    .ind-block {
+      margin: 10px 0; padding: 8px 10px;
+      background: var(--panel-2); border-radius: 8px; font-size: 12px;
+      border: 1px solid var(--line);
+    }
+    .ind-block .title { color: var(--mut); font-size: 11px; margin-bottom: 4px; }
+    .ind-block .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    .ind-block b { color: var(--txt); }
+    .ind-block .ok { color: var(--good); }
+    .ind-block .bad { color: var(--bad); }
+    .ind-block .warn { color: var(--warn); }
+
+    .hits-list {
+      font-size: 12px; color: var(--mut); margin: 8px 0;
+      padding: 7px 10px; background: rgba(76,194,255,.05);
+      border: 1px dashed rgba(76,194,255,.3); border-radius: 6px;
+    }
+    .hits-list b { color: var(--gold); }
+    .hits-list .pen { color: var(--bad); margin-top: 4px; display: block; }
+
+    .levels {
+      background: var(--panel-2); border-radius: 10px; padding: 8px 10px;
+      font-size: 12px; line-height: 1.7;
+    }
+    .levels .row { display: flex; justify-content: space-between; gap: 8px; }
+    .levels .row span:first-child { color: var(--mut); }
+    .levels .stop { color: var(--bad); }
+    .levels .tp1, .levels .tp2 { color: var(--good); }
+    .levels .entry { color: var(--acc); }
+
+    .ext-links { margin-top: 10px; font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .ext-links a {
+      color: var(--mut); padding: 6px 10px;
+      border: 1px solid var(--line); border-radius: 6px;
+      background: var(--panel-2);
+    }
+    .ext-links a:hover { color: var(--acc); border-color: var(--acc); }
+
+    .empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--mut); }
+
+    /* === 모바일 폰 (~640px) === */
+    @media (max-width: 640px) {
+      body { font-size: 17px; }
+      h1 { font-size: 24px; }
+      h1 .sub { display: block; margin: 4px 0 0; font-size: 14px; }
+      .tab { padding: 12px 15px; font-size: 16px; }
+      .tab .count { font-size: 14px; }
+      .filters label { font-size: 14px; }
+      .filters select { font-size: 16px; padding: 10px 11px; }
+      .meta-line .chip { font-size: 14px; padding: 5px 11px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      .card .name { font-size: 20px; }
+      .card .ticker { font-size: 14px; }
+      .badge { font-size: 14px; padding: 4px 10px; }
+      .ind-block { font-size: 14px; padding: 10px 12px; }
+      .ind-block .title { font-size: 13px; }
+      .hits-list { font-size: 14px; padding: 8px 11px; }
+      .levels { font-size: 15px; padding: 11px 13px; }
+      .ext-links a { padding: 8px 11px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎯 타점 스크리너 <span class="sub">일목 + 볼린저 + 엔벨로프</span></h1>
+    <div class="meta-line" id="meta-line"></div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-cat="golden">🏆 황금 타점 <span class="count" id="cnt-golden">-</span></div>
+    <div class="tab" data-cat="strong">💎 강한 매수 <span class="count" id="cnt-strong">-</span></div>
+    <div class="tab" data-cat="buy">🎯 매수 <span class="count" id="cnt-buy">-</span></div>
+    <div class="tab" data-cat="triple">✨ 3중 정렬 <span class="count" id="cnt-triple">-</span></div>
+    <div class="tab" data-cat="sell">🚨 청산 신호 <span class="count" id="cnt-sell">-</span></div>
+  </div>
+
+  <div class="filters">
+    <label>정렬
+      <select id="f-sort">
+        <option value="buy">매수 점수↓</option>
+        <option value="sell">매도 점수↓</option>
+        <option value="rsi">RSI 낮은 순</option>
+        <option value="env">엔벨로프 위치 낮은 순</option>
+      </select>
+    </label>
+    <label>최소 점수
+      <select id="f-min">
+        <option value="35">35+</option>
+        <option value="50" selected>50+</option>
+        <option value="65">65+</option>
+        <option value="80">80+</option>
+      </select>
+    </label>
+    <label>검색
+      <input type="text" id="f-search" placeholder="종목명/코드" />
+    </label>
+  </div>
+
+  <main>
+    <div id="grid" class="grid">
+      <div class="empty">⏳ 데이터 로딩 중…</div>
+    </div>
+  </main>
+
+  <!-- __EMBEDDED_DATA__ -->
+
+  <script>
+    const state = {
+      data: null,
+      cat: 'golden',
+      sort: 'buy',
+      min: 50,
+      search: '',
+    };
+
+    const fmtPrice = (n) => n == null ? '-' : Number(n).toLocaleString('ko-KR', {maximumFractionDigits: 0});
+    const safe = (s) => (s ?? '').toString();
+
+    async function load() {
+      if (window.EMBEDDED_DATA) {
+        state.data = window.EMBEDDED_DATA;
+      } else {
+        const r = await fetch('results.json?t=' + Date.now());
+        state.data = await r.json();
+      }
+      renderMeta();
+      renderCounts();
+      render();
+    }
+
+    function renderMeta() {
+      const m = state.data.meta || {};
+      const at = (m.generated_at || '').slice(0, 16);
+      document.getElementById('meta-line').innerHTML = `
+        <div class="chip">📡 분석 <strong>${m.fetched ?? '-'}</strong>개 / 거래대금 5억+</div>
+        <div class="chip">⏱ 스캔 <strong>${m.elapsed_sec ?? '-'}s</strong></div>
+        <div class="chip">🕒 ${at} UTC</div>
+      `;
+    }
+
+    function renderCounts() {
+      const stocks = state.data.stocks || [];
+      const c = (filter) => stocks.filter(filter).length;
+      document.getElementById('cnt-golden').textContent = c(s => s.buy.score >= 80);
+      document.getElementById('cnt-strong').textContent = c(s => s.buy.score >= 65 && s.buy.score < 80);
+      document.getElementById('cnt-buy').textContent    = c(s => s.buy.score >= 50 && s.buy.score < 65);
+      document.getElementById('cnt-triple').textContent = c(s => s.buy.triple_aligned);
+      document.getElementById('cnt-sell').textContent   = c(s => s.sell.score >= 55);
+    }
+
+    function filterStocks() {
+      let list = (state.data.stocks || []).slice();
+      if (state.cat === 'golden') list = list.filter(s => s.buy.score >= 80);
+      else if (state.cat === 'strong') list = list.filter(s => s.buy.score >= 65 && s.buy.score < 80);
+      else if (state.cat === 'buy')   list = list.filter(s => s.buy.score >= 50 && s.buy.score < 65);
+      else if (state.cat === 'triple') list = list.filter(s => s.buy.triple_aligned);
+      else if (state.cat === 'sell') list = list.filter(s => s.sell.score >= 55);
+
+      // 매수 카테고리에서는 buy.score 최소값 필터, 청산 탭은 sell.score 기준
+      if (state.cat !== 'sell') {
+        list = list.filter(s => s.buy.score >= state.min);
+      }
+
+      if (state.search) {
+        const q = state.search.toLowerCase();
+        list = list.filter(s => s.ticker.includes(q) || (s.name || '').toLowerCase().includes(q));
+      }
+      if (state.sort === 'buy')      list.sort((a,b) => b.buy.score - a.buy.score);
+      else if (state.sort === 'sell') list.sort((a,b) => b.sell.score - a.sell.score);
+      else if (state.sort === 'rsi')  list.sort((a,b) => (a.rsi14 ?? 100) - (b.rsi14 ?? 100));
+      else if (state.sort === 'env')  list.sort((a,b) => (a.env_pos_pct ?? 100) - (b.env_pos_pct ?? 100));
+      return list;
+    }
+
+    function indicatorBlock(s) {
+      const cloudStatus = s.above_cloud ? '<span class="ok">구름 위 ✓</span>' :
+                          s.below_cloud ? '<span class="bad">구름 아래 ✗</span>' :
+                          '<span class="warn">구름 내</span>';
+      const tkOrder = s.tenkan_above_kijun ? '<span class="ok">전환>기준 ✓</span>' : '<span class="bad">전환<기준 ✗</span>';
+      const crossInfo = s.tenkan_kijun_cross_days_ago != null && s.tenkan_kijun_cross_days_ago <= 3
+        ? ` <small>(GC -${s.tenkan_kijun_cross_days_ago}d)</small>` : '';
+      const chikou = s.chikou_above_price_26d_ago ? '<span class="ok">후행 양호 ✓</span>' : '<span class="warn">후행 약함</span>';
+
+      const bbPos = s.bb_pctb >= 0.95 ? `<span class="bad">상단 ${s.bb_pctb.toFixed(2)}</span>` :
+                    s.bb_pctb <= 0.05 ? `<span class="ok">하단 ${s.bb_pctb.toFixed(2)}</span>` :
+                    `%B ${s.bb_pctb.toFixed(2)}`;
+      const sqz = s.bb_squeeze ? (s.bb_expanding ? '<span class="ok">스퀴즈 확장 ✓</span>' : '<span class="warn">스퀴즈 대기</span>') : '';
+
+      const envPos = s.env_pos_pct >= 5 ? `<span class="bad">${s.env_pos_pct > 0 ? '+' : ''}${s.env_pos_pct}%</span>` :
+                     s.env_pos_pct <= -3 ? `<span class="ok">${s.env_pos_pct}%</span>` :
+                     `${s.env_pos_pct > 0 ? '+' : ''}${s.env_pos_pct}%`;
+      const envEvent = s.env_above_lower ? '<span class="ok">하한 반등 ✓</span>' :
+                       s.env_just_broke_upper ? '<span class="warn">상한 돌파</span>' : '';
+
+      return `
+        <div class="ind-block">
+          <div class="title">🎌 일목균형표</div>
+          <div class="row"><span>${cloudStatus}</span><span>구름 ${s.cloud_thickness_pct}%</span></div>
+          <div class="row"><span>${tkOrder}${crossInfo}</span><span>${chikou}</span></div>
+          <div class="row"><span>전환선</span><b>${fmtPrice(s.tenkan)}</b></div>
+          <div class="row"><span>기준선</span><b>${fmtPrice(s.kijun)}</b></div>
+        </div>
+        <div class="ind-block">
+          <div class="title">📊 볼린저밴드</div>
+          <div class="row"><span>${bbPos}</span><span>${sqz}</span></div>
+          <div class="row"><span>밴드폭</span><b>${s.bb_width}%</b></div>
+          <div class="row"><span>상단/중/하단</span><b>${fmtPrice(s.bb_upper)} / ${fmtPrice(s.bb_mid)} / ${fmtPrice(s.bb_lower)}</b></div>
+        </div>
+        <div class="ind-block">
+          <div class="title">📏 엔벨로프 ±5%</div>
+          <div class="row"><span>위치</span><span>${envPos}</span></div>
+          <div class="row"><span>${envEvent}</span><span></span></div>
+          <div class="row"><span>상한 / 중심 / 하한</span><b>${fmtPrice(s.env_upper)} / ${fmtPrice(s.env_mid)} / ${fmtPrice(s.env_lower)}</b></div>
+        </div>
+      `;
+    }
+
+    function renderCard(s) {
+      const bs = s.buy.score;
+      const ss = s.sell.score;
+      const rCls = bs >= 80 ? 'r80' : bs >= 65 ? 'r65' : bs >= 50 ? 'r50' : '';
+      const buyBadge = `<span class="badge b${bs>=80?'80':bs>=65?'65':bs>=50?'50':'35'}">${s.buy.rank_emoji} ${bs} ${s.buy.rank}</span>`;
+      const sellBadge = ss >= 55 ? `<span class="badge sell">${s.sell.rank_emoji} 매도 ${ss}</span>` : '';
+      const tripleBadge = s.buy.triple_aligned ? `<span class="badge triple">✨ 3중 정렬</span>` : '';
+      const marketBadge = `<span class="badge market">${s.market}</span>`;
+      const t = s.trade;
+      const hits = (s.buy.hits || []).join(' · ');
+      const pens = (s.buy.penalties || []).join(' · ');
+
+      return `
+        <div class="card ${rCls} ${ss>=70?'sell':''}">
+          <div class="top">
+            <div>
+              <span class="name">${safe(s.name)}</span>
+              <span class="ticker">${s.ticker}</span>
+            </div>
+            <div class="badges">${tripleBadge} ${buyBadge} ${sellBadge} ${marketBadge}</div>
+          </div>
+          <div class="meta-line" style="font-size:12px;margin-bottom:8px;color:var(--mut)">
+            <span>현재가 <b style="color:var(--txt)">${fmtPrice(s.close)}</b></span>
+            ${s.rsi14 != null ? `<span>· RSI <b style="color:var(--txt)">${s.rsi14}</b></span>` : ''}
+            ${s.ret_20d_pct != null ? `<span>· 20일 <b style="color:var(--txt)">${s.ret_20d_pct > 0 ? '+' : ''}${s.ret_20d_pct}%</b></span>` : ''}
+          </div>
+          ${hits ? `<div class="hits-list"><b>✓</b> ${hits}${pens ? `<span class="pen">⚠️ ${pens}</span>` : ''}</div>` : ''}
+          ${indicatorBlock(s)}
+          <div class="levels">
+            <div class="row"><span>📥 진입</span><span class="entry">${fmtPrice(t.entry)}</span></div>
+            <div class="row"><span>🛑 손절 (-7%)</span><span class="stop">${fmtPrice(t.stop)}</span></div>
+            <div class="row"><span>🎯 익절1 (+20%)</span><span class="tp1">${fmtPrice(t.tp1)}</span></div>
+            <div class="row"><span>🎯 익절2 (+50%)</span><span class="tp2">${fmtPrice(t.tp2)}</span></div>
+            <div class="row"><span style="margin-top:6px">지지: 기준선</span><span>${fmtPrice(t.support_kijun)}</span></div>
+            <div class="row"><span>저항: BB 상단</span><span>${fmtPrice(t.resistance_bb_upper)}</span></div>
+          </div>
+          <div class="ext-links">
+            <a href="https://finance.naver.com/item/main.naver?code=${s.ticker}" target="_blank" rel="noopener">📊 네이버</a>
+            <a href="https://m.stock.naver.com/domestic/stock/${s.ticker}/total" target="_blank" rel="noopener">📱 모바일</a>
+            <a href="https://kr.tradingview.com/chart/?symbol=KRX%3A${s.ticker}" target="_blank" rel="noopener">📈 TradingView</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const list = filterStocks();
+      const grid = document.getElementById('grid');
+      if (!list.length) {
+        grid.innerHTML = `<div class="empty">조건에 맞는 종목이 없습니다.</div>`;
+        return;
+      }
+      grid.innerHTML = list.map(renderCard).join('');
+    }
+
+    document.getElementById('tabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.cat = tab.dataset.cat;
+      render();
+    });
+    document.getElementById('f-sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
+    document.getElementById('f-min').addEventListener('change', e => { state.min = parseInt(e.target.value); render(); });
+    document.getElementById('f-search').addEventListener('input', e => { state.search = e.target.value.trim(); render(); });
+
+    load().catch(err => {
+      document.getElementById('grid').innerHTML = `<div class="empty">⚠️ 데이터 로드 실패: ${err.message}</div>`;
+    });
+  </script>
+</body>
+</html>
