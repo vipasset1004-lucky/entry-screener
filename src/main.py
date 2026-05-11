@@ -11,6 +11,7 @@ from pathlib import Path
 from .indicators import snapshot
 from .ohlcv_fetcher import fetch_ohlcv_for, get_universe
 from .signals import buy_score, sell_score, trade_levels
+from .themes_fetcher import build_theme_map
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH       = REPO_ROOT / "results.json"
@@ -38,6 +39,10 @@ def run() -> int:
     meta_cache = {u.code: (u.name, u.market, u.marcap, u.amount) for u in universe}
     codes = [u.code for u in universe]
 
+    print("[1.5/4] 테마 정보 수집 (new-high + divergence)...", flush=True)
+    theme_map = build_theme_map()
+    print(f"  -> {len(theme_map)}개 ticker 테마 매핑", flush=True)
+
     print("[2/4] OHLCV 페치...", flush=True)
     fetch = fetch_ohlcv_for(codes, max_workers=12)
     print(f"  성공 {len(fetch.success)}/{fetch.universe_size}, 실패 {len(fetch.failed)}, 소요 {fetch.elapsed_sec}s", flush=True)
@@ -58,6 +63,7 @@ def run() -> int:
         d = asdict(snap)
         d.pop("raw", None)
         d["marcap"] = marcap
+        d["themes"] = theme_map.get(ticker, [])
         d["buy"] = bs
         d["sell"] = ss
         d["trade"] = trade_levels(snap)

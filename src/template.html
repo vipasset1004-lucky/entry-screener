@@ -136,6 +136,16 @@
 
     .empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--mut); }
 
+    .themes-row {
+      margin-bottom: 10px; display: flex; gap: 4px; flex-wrap: wrap;
+    }
+    .theme-chip {
+      font-size: 11px; padding: 3px 9px;
+      background: rgba(76,194,255,.1); color: var(--acc);
+      border: 1px solid rgba(76,194,255,.3);
+      border-radius: 999px;
+    }
+
     /* === 모바일 폰 (~640px) === */
     @media (max-width: 640px) {
       body { font-size: 17px; }
@@ -155,6 +165,7 @@
       .hits-list { font-size: 14px; padding: 8px 11px; }
       .levels { font-size: 15px; padding: 11px 13px; }
       .ext-links a { padding: 8px 11px; font-size: 14px; }
+      .theme-chip { font-size: 13px; padding: 4px 10px; }
     }
   </style>
 </head>
@@ -190,7 +201,7 @@
       </select>
     </label>
     <label>검색
-      <input type="text" id="f-search" placeholder="종목명/코드" />
+      <input type="text" id="f-search" placeholder="종목명/코드/테마" />
     </label>
   </div>
 
@@ -261,7 +272,11 @@
 
       if (state.search) {
         const q = state.search.toLowerCase();
-        list = list.filter(s => s.ticker.includes(q) || (s.name || '').toLowerCase().includes(q));
+        list = list.filter(s =>
+          s.ticker.includes(q) ||
+          (s.name || '').toLowerCase().includes(q) ||
+          (s.themes || []).some(t => t.toLowerCase().includes(q))
+        );
       }
       if (state.sort === 'buy')      list.sort((a,b) => b.buy.score - a.buy.score);
       else if (state.sort === 'sell') list.sort((a,b) => b.sell.score - a.sell.score);
@@ -339,6 +354,7 @@
             ${s.rsi14 != null ? `<span>· RSI <b style="color:var(--txt)">${s.rsi14}</b></span>` : ''}
             ${s.ret_20d_pct != null ? `<span>· 20일 <b style="color:var(--txt)">${s.ret_20d_pct > 0 ? '+' : ''}${s.ret_20d_pct}%</b></span>` : ''}
           </div>
+          ${(s.themes && s.themes.length) ? `<div class="themes-row">${s.themes.slice(0,4).map(t => `<span class="theme-chip">#${t}</span>`).join(' ')}</div>` : ''}
           ${hits ? `<div class="hits-list"><b>✓</b> ${hits}${pens ? `<span class="pen">⚠️ ${pens}</span>` : ''}</div>` : ''}
           ${indicatorBlock(s)}
           <div class="levels">
